@@ -519,7 +519,36 @@
           console.log('Google Identity Services loaded');
         };
         document.body.appendChild(script);
+        
+        // Also load the GAPI client library
+        if (isGoogleDriveReady && driveAccessToken) {
+          initGapiClient();
+        }
       };
+      
+      const initGapiClient = async () => {
+        try {
+          await new Promise((resolve) => {
+            gapi.load('client', resolve);
+          });
+          
+          await gapi.client.init({
+            apiKey: GOOGLE_API_KEY,
+            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+          });
+          
+          console.log('GAPI client initialized');
+        } catch (error) {
+          console.error('Error initializing GAPI client:', error);
+        }
+      };
+      
+      // Initialize GAPI when Drive is ready
+      useEffect(() => {
+        if (isGoogleDriveReady && driveAccessToken) {
+          initGapiClient();
+        }
+      }, [isGoogleDriveReady, driveAccessToken]);
       
       const initGoogleDrive = async () => {
         // This function is no longer needed with the new flow
@@ -545,21 +574,6 @@
               localStorage.setItem('arc_drive_token', response.access_token);
               localStorage.setItem('arc_drive_token_expiry', (Date.now() + 3600000).toString()); // 1 hour
               console.log('Google Drive connected and saved to localStorage');
-              
-              // Load the Drive API
-              await new Promise((resolve, reject) => {
-                gapi.load('client', async () => {
-                  try {
-                    await gapi.client.init({
-                      apiKey: GOOGLE_API_KEY,
-                      discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-                    });
-                    resolve();
-                  } catch (error) {
-                    reject(error);
-                  }
-                });
-              });
             },
           });
           
@@ -580,6 +594,12 @@
       
       const uploadPDFToGoogleDrive = async (file) => {
         if (!isGoogleDriveReady) {
+          console.log('Google Drive not ready');
+          return null;
+        }
+        
+        if (!window.gapi || !window.gapi.client || !window.gapi.client.drive) {
+          console.log('GAPI client not initialized yet, skipping upload');
           return null;
         }
         
@@ -604,8 +624,14 @@
             body: form,
           });
           
+          if (!response.ok) {
+            throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+          }
+          
           const result = await response.json();
           setUploadingPDF(false);
+          
+          console.log('PDF uploaded successfully:', result.id);
           
           return {
             driveFileId: result.id,
@@ -615,7 +641,7 @@
         } catch (error) {
           console.error('Error uploading to Google Drive:', error);
           setUploadingPDF(false);
-          alert('Failed to upload PDF to Google Drive.');
+          alert('Failed to upload PDF to Google Drive: ' + error.message);
           return null;
         }
       };
