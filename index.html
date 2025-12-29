@@ -458,6 +458,18 @@
       
       const APP_PASSWORD = 'ARC2024';
       
+      // Load Google Drive connection state on mount
+      useEffect(() => {
+        const savedToken = localStorage.getItem('arc_drive_token');
+        const tokenExpiry = localStorage.getItem('arc_drive_token_expiry');
+        
+        if (savedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
+          setDriveAccessToken(savedToken);
+          setIsGoogleDriveReady(true);
+          console.log('Restored Google Drive connection from localStorage');
+        }
+      }, []);
+      
       // ============================================================================
       // GOOGLE DRIVE CREDENTIALS
       // ============================================================================
@@ -525,8 +537,14 @@
                 return;
               }
               
+              // Save token to state
               setDriveAccessToken(response.access_token);
               setIsGoogleDriveReady(true);
+              
+              // Save token to localStorage with expiry (tokens typically last 1 hour)
+              localStorage.setItem('arc_drive_token', response.access_token);
+              localStorage.setItem('arc_drive_token_expiry', (Date.now() + 3600000).toString()); // 1 hour
+              console.log('Google Drive connected and saved to localStorage');
               
               // Load the Drive API
               await new Promise((resolve, reject) => {
@@ -550,6 +568,14 @@
           console.error('Error signing in to Google Drive:', error);
           alert('Failed to connect to Google Drive. Please try again.');
         }
+      };
+      
+      const disconnectGoogleDrive = () => {
+        localStorage.removeItem('arc_drive_token');
+        localStorage.removeItem('arc_drive_token_expiry');
+        setIsGoogleDriveReady(false);
+        setDriveAccessToken(null);
+        console.log('Disconnected from Google Drive');
       };
       
       const uploadPDFToGoogleDrive = async (file) => {
