@@ -499,36 +499,53 @@
       }, [isAuthenticated]);
       
       const loadGoogleDriveAPI = () => {
-        if (window.gapi) {
-          window.gapi.load('client:auth2', initGoogleDrive);
-        }
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          console.log('Google Identity Services loaded');
+        };
+        document.body.appendChild(script);
       };
       
       const initGoogleDrive = async () => {
-        try {
-          await window.gapi.client.init({
-            apiKey: GOOGLE_API_KEY,
-            clientId: GOOGLE_CLIENT_ID,
-            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
-            scope: 'https://www.googleapis.com/auth/drive.file',
-          });
-          
-          const authInstance = window.gapi.auth2.getAuthInstance();
-          if (authInstance.isSignedIn.get()) {
-            setIsGoogleDriveReady(true);
-            setDriveAccessToken(authInstance.currentUser.get().getAuthResponse().access_token);
-          }
-        } catch (error) {
-          console.error('Error initializing Google Drive:', error);
-        }
+        // This function is no longer needed with the new flow
       };
       
       const signInToGoogleDrive = async () => {
         try {
-          const authInstance = window.gapi.auth2.getAuthInstance();
-          await authInstance.signIn();
-          setIsGoogleDriveReady(true);
-          setDriveAccessToken(authInstance.currentUser.get().getAuthResponse().access_token);
+          const tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: 'https://www.googleapis.com/auth/drive.file',
+            callback: async (response) => {
+              if (response.error) {
+                console.error('Error getting token:', response);
+                alert('Failed to connect to Google Drive. Please try again.');
+                return;
+              }
+              
+              setDriveAccessToken(response.access_token);
+              setIsGoogleDriveReady(true);
+              
+              // Load the Drive API
+              await new Promise((resolve, reject) => {
+                gapi.load('client', async () => {
+                  try {
+                    await gapi.client.init({
+                      apiKey: GOOGLE_API_KEY,
+                      discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+                    });
+                    resolve();
+                  } catch (error) {
+                    reject(error);
+                  }
+                });
+              });
+            },
+          });
+          
+          tokenClient.requestAccessToken({ prompt: 'consent' });
         } catch (error) {
           console.error('Error signing in to Google Drive:', error);
           alert('Failed to connect to Google Drive. Please try again.');
