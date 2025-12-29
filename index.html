@@ -451,13 +451,18 @@
       const [allTags, setAllTags] = useState(new Set());
       const [citationStyle, setCitationStyle] = useState('apa');
       
+      // Google Drive integration
+      const [isGoogleDriveReady, setIsGoogleDriveReady] = useState(false);
+      const [driveAccessToken, setDriveAccessToken] = useState(null);
+      const [uploadingPDF, setUploadingPDF] = useState(false);
+      
       const APP_PASSWORD = 'ARC2024';
       
       // ============================================================================
-      // GOOGLE DRIVE CREDENTIALS - REPLACE WITH YOUR ACTUAL CREDENTIALS:
+      // GOOGLE DRIVE CREDENTIALS
       // ============================================================================
-      const GOOGLE_CLIENT_ID = 'PASTE_YOUR_CLIENT_ID_HERE';
-      const GOOGLE_API_KEY = 'PASTE_YOUR_API_KEY_HERE';
+      const GOOGLE_CLIENT_ID = '489777596410-0lbnt277femoo3oki4rirfmltkir8vcl.apps.googleusercontent.com';
+      const GOOGLE_API_KEY = 'AIzaSyDB_SAZi0xd4_Th7QSD1qteKYaEOLWXeng';
       // ============================================================================
 
       const [formData, setFormData] = useState({
@@ -473,7 +478,10 @@
         publisher: '',
         tags: '',
         notes: '',
-        pdfFile: null
+        pdfFile: null,
+        driveFileId: null,
+        driveFileName: null,
+        driveFileUrl: null
       });
 
       useEffect(() => {
@@ -486,23 +494,131 @@
       useEffect(() => {
         if (isAuthenticated) {
           loadReferences();
+          loadGoogleDriveAPI();
         }
       }, [isAuthenticated]);
+      
+      const loadGoogleDriveAPI = () => {
+        if (window.gapi) {
+          window.gapi.load('client:auth2', initGoogleDrive);
+        }
+      };
+      
+      const initGoogleDrive = async () => {
+        try {
+          await window.gapi.client.init({
+            apiKey: GOOGLE_API_KEY,
+            clientId: GOOGLE_CLIENT_ID,
+            discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"],
+            scope: 'https://www.googleapis.com/auth/drive.file',
+          });
+          
+          const authInstance = window.gapi.auth2.getAuthInstance();
+          if (authInstance.isSignedIn.get()) {
+            setIsGoogleDriveReady(true);
+            setDriveAccessToken(authInstance.currentUser.get().getAuthResponse().access_token);
+          }
+        } catch (error) {
+          console.error('Error initializing Google Drive:', error);
+        }
+      };
+      
+      const signInToGoogleDrive = async () => {
+        try {
+          const authInstance = window.gapi.auth2.getAuthInstance();
+          await authInstance.signIn();
+          setIsGoogleDriveReady(true);
+          setDriveAccessToken(authInstance.currentUser.get().getAuthResponse().access_token);
+        } catch (error) {
+          console.error('Error signing in to Google Drive:', error);
+          alert('Failed to connect to Google Drive. Please try again.');
+        }
+      };
+      
+      const uploadPDFToGoogleDrive = async (file) => {
+        if (!isGoogleDriveReady) {
+          return null;
+        }
+        
+        setUploadingPDF(true);
+        
+        try {
+          const folderId = await getOrCreateARCFolder();
+          
+          const metadata = {
+            name: file.name,
+            mimeType: file.type,
+            parents: [folderId]
+          };
+          
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+          form.append('file', file);
+          
+          const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: new Headers({ 'Authorization': 'Bearer ' + driveAccessToken }),
+            body: form,
+          });
+          
+          const result = await response.json();
+          setUploadingPDF(false);
+          
+          return {
+            driveFileId: result.id,
+            driveFileName: result.name,
+            driveFileUrl: `https://drive.google.com/file/d/${result.id}/view`
+          };
+        } catch (error) {
+          console.error('Error uploading to Google Drive:', error);
+          setUploadingPDF(false);
+          alert('Failed to upload PDF to Google Drive.');
+          return null;
+        }
+      };
+      
+      const getOrCreateARCFolder = async () => {
+        try {
+          const searchResponse = await window.gapi.client.drive.files.list({
+            q: "name='ARC References' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+            fields: 'files(id, name)',
+          });
+          
+          if (searchResponse.result.files && searchResponse.result.files.length > 0) {
+            return searchResponse.result.files[0].id;
+          }
+          
+          const folderMetadata = {
+            name: 'ARC References',
+            mimeType: 'application/vnd.google-apps.folder'
+          };
+          
+          const createResponse = await window.gapi.client.drive.files.create({
+            resource: folderMetadata,
+            fields: 'id'
+          });
+          
+          return createResponse.result.id;
+        } catch (error) {
+          console.error('Error with ARC folder:', error);
+          throw error;
+        }
+      };
 
       const loadReferences = async () => {
         try {
-          const result = await window.storage.list('ref:');
-          if (result && result.keys) {
-            const loadedRefs = await Promise.all(
-              result.keys.map(async (key) => {
-                try {
-                  const data = await window.storage.get(key);
-                  return data ? JSON.parse(data.value) : null;
-                } catch {
-                  return null;
-                }
-              })
-            );
+          // Get all reference keys from localStorage
+          const keys = Object.keys(localStorage).filter(key => key.startsWith('ref:'));
+          
+          if (keys.length > 0) {
+            const loadedRefs = keys.map(key => {
+              try {
+                const data = localStorage.getItem(key);
+                return data ? JSON.parse(data) : null;
+              } catch {
+                return null;
+              }
+            });
             
             const validRefs = loadedRefs.filter(ref => ref !== null);
             setReferences(validRefs);
@@ -523,17 +639,28 @@
 
       const saveReference = async (reference) => {
         try {
-          await window.storage.set(`ref:${reference.id}`, JSON.stringify(reference));
+          // Don't try to save the File object itself, just the filename
+          const refToSave = { ...reference };
+          if (refToSave.pdfFile && typeof refToSave.pdfFile === 'object') {
+            refToSave.pdfFile = refToSave.pdfFile.name || 'uploaded.pdf';
+          }
+          
+          const jsonString = JSON.stringify(refToSave);
+          localStorage.setItem(`ref:${refToSave.id}`, jsonString);
+          console.log('Reference saved successfully:', refToSave.id);
+          return true;
         } catch (error) {
           console.error('Failed to save reference:', error);
-          alert('Failed to save reference. Please try again.');
+          console.error('Error details:', error.message);
+          alert('Failed to save reference: ' + error.message);
+          return false;
         }
       };
 
       const deleteReference = async (id) => {
         if (!confirm('Are you sure you want to delete this reference?')) return;
         try {
-          await window.storage.delete(`ref:${id}`);
+          localStorage.removeItem(`ref:${id}`);
           setReferences(references.filter(ref => ref.id !== id));
         } catch (error) {
           console.error('Failed to delete reference:', error);
@@ -561,8 +688,21 @@
               year: metadata.year || prev.year,
               doi: metadata.doi || prev.doi
             }));
+            
+            // Upload to Google Drive if connected
+            if (isGoogleDriveReady) {
+              const driveData = await uploadPDFToGoogleDrive(file);
+              if (driveData) {
+                setFormData(prev => ({
+                  ...prev,
+                  driveFileId: driveData.driveFileId,
+                  driveFileName: driveData.driveFileName,
+                  driveFileUrl: driveData.driveFileUrl
+                }));
+              }
+            }
           } catch (error) {
-            console.error('Error extracting PDF metadata:', error);
+            console.error('Error processing PDF:', error);
             // Keep the file even if extraction fails
             setFormData(prev => ({ ...prev, pdfFile: file }));
           }
@@ -643,31 +783,48 @@
       const handleSubmit = async (e) => {
         e.preventDefault();
         
+        // Create reference object without the File object
         const newReference = {
           id: editingId || `ref_${Date.now()}`,
-          ...formData,
+          type: formData.type,
+          title: formData.title,
+          authors: formData.authors,
+          year: formData.year,
+          journal: formData.journal,
+          volume: formData.volume,
+          issue: formData.issue,
+          pages: formData.pages,
+          doi: formData.doi,
+          publisher: formData.publisher,
+          tags: formData.tags,
+          notes: formData.notes,
           pdfFile: formData.pdfFile ? formData.pdfFile.name : null,
+          driveFileId: formData.driveFileId,
+          driveFileName: formData.driveFileName,
+          driveFileUrl: formData.driveFileUrl,
           dateAdded: editingId ? references.find(r => r.id === editingId)?.dateAdded : new Date().toISOString()
         };
 
-        if (editingId) {
-          const updatedRefs = references.map(ref => 
-            ref.id === editingId ? newReference : ref
-          );
-          setReferences(updatedRefs);
-        } else {
-          setReferences([...references, newReference]);
-        }
-
-        await saveReference(newReference);
+        const saved = await saveReference(newReference);
         
-        if (newReference.tags) {
-          const newTags = new Set(allTags);
-          newReference.tags.split(',').forEach(tag => newTags.add(tag.trim()));
-          setAllTags(newTags);
+        if (saved) {
+          if (editingId) {
+            const updatedRefs = references.map(ref => 
+              ref.id === editingId ? newReference : ref
+            );
+            setReferences(updatedRefs);
+          } else {
+            setReferences([...references, newReference]);
+          }
+          
+          if (newReference.tags) {
+            const newTags = new Set(allTags);
+            newReference.tags.split(',').forEach(tag => newTags.add(tag.trim()));
+            setAllTags(newTags);
+          }
+          
+          resetForm();
         }
-        
-        resetForm();
       };
       
       const resetForm = () => {
@@ -684,7 +841,10 @@
           publisher: '',
           tags: '',
           notes: '',
-          pdfFile: null
+          pdfFile: null,
+          driveFileId: null,
+          driveFileName: null,
+          driveFileUrl: null
         });
         setShowAddForm(false);
         setEditingId(null);
@@ -852,6 +1012,46 @@
             h('div', null,
               h('h1', { className: 'main-title' }, 'ARC'),
               h('p', { style: { fontSize: '2rem', fontWeight: '600', color: '#fde68a', marginBottom: '0.5rem', opacity: 0.9 } }, 'Academic Reference Catalogue')
+            ),
+            h('div', { style: { marginTop: '1rem' } },
+              !isGoogleDriveReady ? h('button', {
+                onClick: signInToGoogleDrive,
+                style: {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '0.5rem',
+                  background: 'white',
+                  color: '#1f2937',
+                  fontWeight: '600',
+                  border: 'none',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  transition: 'all 0.3s ease'
+                }
+              },
+                h('svg', { style: { width: '1.25rem', height: '1.25rem' }, viewBox: '0 0 24 24' },
+                  h('path', { fill: '#4285F4', d: 'M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z' }),
+                  h('path', { fill: '#34A853', d: 'M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z' }),
+                  h('path', { fill: '#FBBC05', d: 'M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z' }),
+                  h('path', { fill: '#EA4335', d: 'M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z' })
+                ),
+                'Connect Google Drive'
+              ) : h('div', {
+                style: {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '0.5rem',
+                  background: 'rgba(34, 197, 94, 0.2)',
+                  border: '1px solid rgba(34, 197, 94, 0.3)'
+                }
+              },
+                h(Icons.Check, { style: { width: '1.25rem', height: '1.25rem', color: '#86efac' } }),
+                h('span', { style: { color: '#86efac', fontWeight: '600' } }, 'Google Drive Connected')
+              )
             )
           ),
           
@@ -999,7 +1199,9 @@
                     )
                   ),
                   h('p', { style: { color: '#fcd34d', fontSize: '0.75rem', marginTop: '0.5rem', opacity: 0.7 } },
-                    'Upload a PDF to auto-extract metadata (title, authors, DOI, year)'
+                    isGoogleDriveReady 
+                      ? 'Upload PDF to auto-extract metadata and save to Google Drive'
+                      : 'Upload PDF to auto-extract metadata (title, authors, DOI, year). Connect Google Drive to save PDFs.'
                   )
                 )
               ),
@@ -1141,7 +1343,9 @@
                 h('div', { style: { flex: 1 } },
                   h('div', { style: { marginBottom: '0.5rem' } },
                     h('span', { className: 'badge badge-type' }, ref.type),
-                    ref.pdfFile && h('span', { className: 'badge badge-pdf' }, 'PDF Attached')
+                    ref.pdfFile && h('span', { className: 'badge badge-pdf' }, 
+                      ref.driveFileUrl ? 'PDF in Drive' : 'PDF Attached'
+                    )
                   ),
                   h('h3', { style: { fontSize: '1.5rem', fontWeight: 'bold', color: '#fef3c7', marginBottom: '0.5rem' } }, ref.title),
                   h('p', { style: { fontSize: '1.125rem', color: '#fde68a', marginBottom: '0.5rem' } },
@@ -1165,6 +1369,31 @@
                   ),
                   ref.notes && h('div', { style: { marginTop: '1rem', padding: '1rem', borderRadius: '0.5rem', background: 'rgba(0, 0, 0, 0.2)' } },
                     h('p', { style: { color: '#fef3c7', fontSize: '0.875rem', fontStyle: 'italic' } }, ref.notes)
+                  ),
+                  ref.driveFileUrl && h('div', { style: { marginTop: '1rem' } },
+                    h('a', {
+                      href: ref.driveFileUrl,
+                      target: '_blank',
+                      rel: 'noopener noreferrer',
+                      style: {
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '0.5rem',
+                        background: 'rgba(59, 130, 246, 0.2)',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                        color: '#93c5fd',
+                        fontWeight: '600',
+                        textDecoration: 'none',
+                        transition: 'all 0.3s ease'
+                      }
+                    },
+                      h('svg', { style: { width: '1.25rem', height: '1.25rem' }, fill: 'currentColor', viewBox: '0 0 24 24' },
+                        h('path', { d: 'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z' })
+                      ),
+                      'View PDF in Google Drive'
+                    )
                   ),
                   h('div', { style: { marginTop: '1rem', padding: '1rem', borderRadius: '0.5rem', background: 'rgba(0, 0, 0, 0.3)' } },
                     h('p', { style: { color: '#fde68a', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' } }, `${citationStyle.toUpperCase()} Citation:`),
