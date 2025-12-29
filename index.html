@@ -4,26 +4,357 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Academic Reference Catalogue</title>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+  
   <style>
+    * {
+      box-sizing: border-box;
+    }
+    
     body {
       margin: 0;
       padding: 0;
       font-family: 'Crimson Text', serif;
+    }
+    
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+    
+    .login-box {
+      max-width: 28rem;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      border-radius: 1rem;
+      padding: 3rem;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    
+    .lock-icon-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    
+    .lock-icon-glow {
+      position: absolute;
+      inset: 0;
+      background: #fbbf24;
+      opacity: 0.2;
+      filter: blur(40px);
+      border-radius: 50%;
+    }
+    
+    .lock-icon {
+      width: 5rem;
+      height: 5rem;
+      color: #fbbf24;
+      position: relative;
+      z-index: 10;
+    }
+    
+    .app-title {
+      font-size: 2.25rem;
+      font-weight: bold;
+      color: #fef3c7;
+      text-align: center;
+      margin-bottom: 0.75rem;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.05em;
+      line-height: 1.2;
+    }
+    
+    .app-subtitle {
+      color: #fde68a;
+      text-align: center;
+      margin-bottom: 2rem;
+      opacity: 0.8;
+    }
+    
+    .password-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(245, 158, 11, 0.3);
+      transition: all 0.3s ease;
+      width: 100%;
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      color: #fef3c7;
+      font-size: 1.125rem;
+      text-align: center;
+      font-family: 'Crimson Text', serif;
+    }
+    
+    .password-input::placeholder {
+      color: #fcd34d;
+      opacity: 0.5;
+    }
+    
+    .password-input:focus {
+      outline: none;
+      border-color: #f59e0b;
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.2);
+    }
+    
+    .password-input.error {
+      border-color: #ef4444;
+      animation: shake 0.5s;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+    
+    .error-message {
+      color: #f87171;
+      font-size: 0.875rem;
+      text-align: center;
+      margin-top: 0.75rem;
+      font-weight: 600;
+    }
+    
+    .unlock-btn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      transition: all 0.3s ease;
+      width: 100%;
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      color: white;
+      font-weight: bold;
+      font-size: 1.125rem;
+      border: none;
+      cursor: pointer;
+      font-family: 'Crimson Text', serif;
+    }
+    
+    .unlock-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 10px 40px rgba(245, 158, 11, 0.4);
+    }
+    
+    .login-footer {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
+    .footer-text {
+      color: #fcd34d;
+      font-size: 0.75rem;
+      text-align: center;
+      opacity: 0.6;
+    }
+    
+    .main-container {
+      min-height: 100vh;
+      padding: 2rem;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+    
+    .main-header {
+      max-width: 80rem;
+      margin: 0 auto 3rem auto;
+    }
+    
+    .main-title {
+      font-size: 3.75rem;
+      font-weight: bold;
+      color: #fef3c7;
+      margin-bottom: 1rem;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.05em;
+    }
+    
+    .main-subtitle {
+      font-size: 1.25rem;
+      color: #fde68a;
+      opacity: 0.8;
+    }
+    
+    .welcome-container {
+      max-width: 80rem;
+      margin: 0 auto;
+      text-align: center;
+      padding: 5rem 0;
+    }
+    
+    .welcome-icon {
+      width: 4rem;
+      height: 4rem;
+      color: #fcd34d;
+      opacity: 0.5;
+      margin: 0 auto 1rem auto;
+    }
+    
+    .welcome-text {
+      font-size: 1.5rem;
+      color: #fde68a;
+      opacity: 0.7;
+      margin-bottom: 1rem;
+    }
+    
+    .welcome-subtext {
+      font-size: 1rem;
+      color: #fde68a;
+      opacity: 0.5;
+    }
+    
+    .logout-btn {
+      position: fixed;
+      top: 2rem;
+      right: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 0.5rem;
+      color: #fde68a;
+      font-family: 'Crimson Text', serif;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .logout-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: #f59e0b;
     }
   </style>
 </head>
 <body>
   <div id="root"></div>
   
-  <script type="text/babel" src="reference-manager.jsx"></script>
-  
   <script type="text/babel">
-    const { Upload, Book, FileText, Search, Plus, Edit2, Trash2, Tag, Download, Filter } = lucide;
-    
+    const { useState, useEffect } = React;
+    const { Upload, Book, FileText, Search, Plus, Edit2, Trash2, Tag, Download } = lucide;
+
+    const ReferenceManager = () => {
+      const [isAuthenticated, setIsAuthenticated] = useState(false);
+      const [passwordInput, setPasswordInput] = useState('');
+      const [passwordError, setPasswordError] = useState(false);
+      
+      const APP_PASSWORD = 'ARC2024';
+
+      useEffect(() => {
+        const authStatus = sessionStorage.getItem('arc_authenticated');
+        if (authStatus === 'true') {
+          setIsAuthenticated(true);
+        }
+      }, []);
+
+      const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        if (passwordInput === APP_PASSWORD) {
+          setIsAuthenticated(true);
+          sessionStorage.setItem('arc_authenticated', 'true');
+          setPasswordError(false);
+        } else {
+          setPasswordError(true);
+          setPasswordInput('');
+        }
+      };
+      
+      const handleLogout = () => {
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('arc_authenticated');
+        setPasswordInput('');
+      };
+
+      if (!isAuthenticated) {
+        return (
+          <div className="login-container">
+            <div className="login-box">
+              <div className="lock-icon-container">
+                <div className="lock-icon-glow"></div>
+                <svg className="lock-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              
+              <h1 className="app-title">
+                Academic Reference<br/>Catalogue
+              </h1>
+              <p className="app-subtitle">
+                Protected Access
+              </p>
+              
+              <form onSubmit={handlePasswordSubmit}>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <input
+                    type="password"
+                    value={passwordInput}
+                    onChange={(e) => {
+                      setPasswordInput(e.target.value);
+                      setPasswordError(false);
+                    }}
+                    placeholder="Enter password"
+                    className={`password-input ${passwordError ? 'error' : ''}`}
+                    autoFocus
+                  />
+                  {passwordError && (
+                    <p className="error-message">
+                      ✗ Incorrect password. Please try again.
+                    </p>
+                  )}
+                </div>
+                
+                <button type="submit" className="unlock-btn">
+                  Unlock Catalogue
+                </button>
+              </form>
+              
+              <div className="login-footer">
+                <p className="footer-text">
+                  Your references and data are stored securely in your browser
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="main-container">
+          <button onClick={handleLogout} className="logout-btn">
+            Logout
+          </button>
+          
+          <div className="main-header">
+            <h1 className="main-title">
+              Academic Reference Catalogue
+            </h1>
+            <p className="main-subtitle">
+              Organize and manage your research collection
+            </p>
+          </div>
+
+          <div className="welcome-container">
+            <Book className="welcome-icon" />
+            <p className="welcome-text">
+              Welcome to your Academic Reference Catalogue!<br/>
+              Full functionality coming soon...
+            </p>
+            <p className="welcome-subtext">
+              You've successfully logged in. The complete app is being built...
+            </p>
+          </div>
+        </div>
+      );
+    };
+
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<ReferenceManager />);
   </script>
