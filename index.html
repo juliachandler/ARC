@@ -648,6 +648,12 @@
           const jsonString = JSON.stringify(refToSave);
           localStorage.setItem(`ref:${refToSave.id}`, jsonString);
           console.log('Reference saved successfully:', refToSave.id);
+          
+          // Auto-sync to Google Drive after saving
+          if (isGoogleDriveReady) {
+            setTimeout(() => syncCSVToGoogleDrive(true), 500); // Small delay to ensure state updates
+          }
+          
           return true;
         } catch (error) {
           console.error('Failed to save reference:', error);
@@ -661,7 +667,13 @@
         if (!confirm('Are you sure you want to delete this reference?')) return;
         try {
           localStorage.removeItem(`ref:${id}`);
-          setReferences(references.filter(ref => ref.id !== id));
+          const updatedRefs = references.filter(ref => ref.id !== id);
+          setReferences(updatedRefs);
+          
+          // Auto-sync to Google Drive after deleting
+          if (isGoogleDriveReady) {
+            setTimeout(() => syncCSVToGoogleDrive(true), 500);
+          }
         } catch (error) {
           console.error('Failed to delete reference:', error);
           alert('Failed to delete reference. Please try again.');
@@ -938,13 +950,109 @@
         // Combine headers and rows
         const csv = [headers.join(','), ...rows].join('\n');
         
-        // Download
+        // Download locally
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `references-catalogue.csv`;
         a.click();
+      };
+      
+      const syncCSVToGoogleDrive = async (silent = false) => {
+        if (!isGoogleDriveReady) {
+          if (!silent) alert('Please connect to Google Drive first');
+          return;
+        }
+        
+        try {
+          // Sort by type first, then alphabetically by author
+          const sortedRefs = [...references].sort((a, b) => {
+            if (a.type !== b.type) {
+              return a.type.localeCompare(b.type);
+            }
+            return (a.authors || '').localeCompare(b.authors || '');
+          });
+          
+          // CSV headers
+          const headers = ['Type', 'Title', 'Authors', 'Year', 'Journal', 'Volume', 'Issue', 'Pages', 'Publisher', 'DOI', 'Tags', 'Notes', 'Date Added', 'PDF Link'];
+          
+          // Convert references to CSV rows
+          const rows = sortedRefs.map(ref => [
+            ref.type || '',
+            ref.title || '',
+            ref.authors || '',
+            ref.year || '',
+            ref.journal || '',
+            ref.volume || '',
+            ref.issue || '',
+            ref.pages || '',
+            ref.publisher || '',
+            ref.doi || '',
+            ref.tags || '',
+            ref.notes || '',
+            ref.dateAdded ? new Date(ref.dateAdded).toLocaleDateString() : '',
+            ref.driveFileUrl || ''
+          ].map(field => {
+            const escaped = String(field).replace(/"/g, '""');
+            return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+          }).join(','));
+          
+          // Combine headers and rows
+          const csv = [headers.join(','), ...rows].join('\n');
+          
+          // Get ARC References folder
+          const folderId = await getOrCreateARCFolder();
+          
+          // Check if CSV file already exists
+          const searchResponse = await window.gapi.client.drive.files.list({
+            q: `name='ARC-Database.csv' and '${folderId}' in parents and trashed=false`,
+            fields: 'files(id, name)',
+          });
+          
+          const blob = new Blob([csv], { type: 'text/csv' });
+          
+          if (searchResponse.result.files && searchResponse.result.files.length > 0) {
+            // Update existing file
+            const fileId = searchResponse.result.files[0].id;
+            
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify({ mimeType: 'text/csv' })], { type: 'application/json' }));
+            form.append('file', blob);
+            
+            await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`, {
+              method: 'PATCH',
+              headers: new Headers({ 'Authorization': 'Bearer ' + driveAccessToken }),
+              body: form,
+            });
+            
+            if (!silent) alert('CSV database updated in Google Drive!');
+            console.log('Auto-synced to Google Drive');
+          } else {
+            // Create new file
+            const metadata = {
+              name: 'ARC-Database.csv',
+              mimeType: 'text/csv',
+              parents: [folderId]
+            };
+            
+            const form = new FormData();
+            form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+            form.append('file', blob);
+            
+            await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+              method: 'POST',
+              headers: new Headers({ 'Authorization': 'Bearer ' + driveAccessToken }),
+              body: form,
+            });
+            
+            if (!silent) alert('CSV database created in Google Drive!');
+            console.log('Created CSV in Google Drive');
+          }
+        } catch (error) {
+          console.error('Error syncing to Google Drive:', error);
+          if (!silent) alert('Failed to sync CSV to Google Drive: ' + error.message);
+        }
       };
       
       const filteredReferences = references.filter(ref => {
@@ -1132,6 +1240,21 @@
               },
                 h(Icons.Download, { style: { width: '1.25rem', height: '1.25rem', display: 'inline', marginRight: '0.5rem' } }),
                 'Export CSV'
+              ),
+              isGoogleDriveReady && h('button', {
+                onClick: syncCSVToGoogleDrive,
+                className: 'btn-secondary',
+                style: { background: 'rgba(59, 130, 246, 0.2)', borderColor: 'rgba(59, 130, 246, 0.3)' }
+              },
+                h('svg', { 
+                  style: { width: '1.25rem', height: '1.25rem', display: 'inline', marginRight: '0.5rem' },
+                  fill: 'none',
+                  stroke: 'currentColor',
+                  viewBox: '0 0 24 24'
+                },
+                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' })
+                ),
+                'Sync to Drive'
               ),
               h('div', { style: { marginLeft: 'auto', color: '#fde68a' } },
                 `${filteredReferences.length} of ${references.length} references`
