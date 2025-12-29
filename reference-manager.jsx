@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, Book, FileText, Search, Plus, Edit2, Trash2, Tag, Download, Filter } from 'lucide-react';
+const { useState, useEffect } = React;
 
 const ReferenceManager = () => {
   const [references, setReferences] = useState([]);
@@ -1171,5 +1170,3 @@ const ReferenceManager = () => {
     </div>
   );
 };
-
-export default ReferenceManager;
