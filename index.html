@@ -754,20 +754,31 @@
         if (file && file.type === 'application/pdf') {
           setFormData({ ...formData, pdfFile: file });
           
+          // First, try to extract from filename (Year_FirstAuthor_Title.pdf format)
+          const filenameMetadata = extractMetadataFromFilename(file.name);
+          
           // Try to extract metadata from PDF
           try {
             const arrayBuffer = await file.arrayBuffer();
             const text = extractPDFText(arrayBuffer);
-            const metadata = extractMetadata(text);
+            const pdfMetadata = extractMetadata(text);
+            
+            // Combine metadata, preferring filename data for year/authors/title
+            const combinedMetadata = {
+              year: filenameMetadata.year || pdfMetadata.year,
+              authors: filenameMetadata.authors || pdfMetadata.authors,
+              title: filenameMetadata.title || pdfMetadata.title,
+              doi: pdfMetadata.doi // DOI only comes from PDF content
+            };
             
             // Update form with extracted metadata (don't overwrite existing values)
             setFormData(prev => ({
               ...prev,
               pdfFile: file,
-              title: metadata.title || prev.title,
-              authors: metadata.authors || prev.authors,
-              year: metadata.year || prev.year,
-              doi: metadata.doi || prev.doi
+              title: combinedMetadata.title || prev.title,
+              authors: combinedMetadata.authors || prev.authors,
+              year: combinedMetadata.year || prev.year,
+              doi: combinedMetadata.doi || prev.doi
             }));
             
             // Upload to Google Drive if connected
@@ -784,10 +795,49 @@
             }
           } catch (error) {
             console.error('Error processing PDF:', error);
-            // Keep the file even if extraction fails
-            setFormData(prev => ({ ...prev, pdfFile: file }));
+            // Even if PDF extraction fails, keep the filename metadata
+            setFormData(prev => ({
+              ...prev,
+              pdfFile: file,
+              title: filenameMetadata.title || prev.title,
+              authors: filenameMetadata.authors || prev.authors,
+              year: filenameMetadata.year || prev.year
+            }));
           }
         }
+      };
+      
+      const extractMetadataFromFilename = (filename) => {
+        const metadata = {};
+        
+        // Remove .pdf extension
+        const nameWithoutExt = filename.replace(/\.pdf$/i, '');
+        
+        // Split by underscore: Year_FirstAuthor_Title
+        const parts = nameWithoutExt.split('_');
+        
+        if (parts.length >= 3) {
+          // First part: Year
+          const yearPart = parts[0].trim();
+          if (/^\d{4}$/.test(yearPart)) {
+            metadata.year = yearPart;
+          }
+          
+          // Second part: FirstAuthor
+          const authorPart = parts[1].trim();
+          if (authorPart) {
+            metadata.authors = authorPart;
+          }
+          
+          // Remaining parts: Title (join with spaces, replace underscores with spaces)
+          const titleParts = parts.slice(2);
+          if (titleParts.length > 0) {
+            metadata.title = titleParts.join(' ').replace(/_/g, ' ').trim();
+          }
+        }
+        
+        console.log('Extracted from filename:', metadata);
+        return metadata;
       };
       
       const extractPDFText = (arrayBuffer) => {
