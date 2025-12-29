@@ -1,1 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Academic Reference Catalogue</title>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://apis.google.com/js/api.js"></script>
+  
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Crimson Text', serif;
+    }
+    
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+    
+    .login-box {
+      max-width: 28rem;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      border-radius: 1rem;
+      padding: 3rem;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    
+    .lock-icon-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+      position: relative;
+    }
+    
+    .lock-icon-glow {
+      position: absolute;
+      inset: 0;
+      background: #fbbf24;
+      opacity: 0.2;
+      filter: blur(40px);
+      border-radius: 50%;
+    }
+    
+    .lock-icon {
+      width: 5rem;
+      height: 5rem;
+      color: #fbbf24;
+      position: relative;
+      z-index: 10;
+    }
+    
+    .app-title {
+      font-size: 2.25rem;
+      font-weight: bold;
+      color: #fef3c7;
+      text-align: center;
+      margin-bottom: 0.75rem;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.05em;
+      line-height: 1.2;
+    }
+    
+    .app-subtitle {
+      color: #fde68a;
+      text-align: center;
+      margin-bottom: 2rem;
+      opacity: 0.8;
+    }
+    
+    .password-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(245, 158, 11, 0.3);
+      transition: all 0.3s ease;
+      width: 100%;
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      color: #fef3c7;
+      font-size: 1.125rem;
+      text-align: center;
+      font-family: 'Crimson Text', serif;
+    }
+    
+    .password-input::placeholder {
+      color: #fcd34d;
+      opacity: 0.5;
+    }
+    
+    .password-input:focus {
+      outline: none;
+      border-color: #f59e0b;
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 30px rgba(245, 158, 11, 0.2);
+    }
+    
+    .password-input.error {
+      border-color: #ef4444;
+      animation: shake 0.5s;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+    
+    .error-message {
+      color: #f87171;
+      font-size: 0.875rem;
+      text-align: center;
+      margin-top: 0.75rem;
+      font-weight: 600;
+    }
+    
+    .unlock-btn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      transition: all 0.3s ease;
+      width: 100%;
+      padding: 1rem 1.5rem;
+      border-radius: 0.5rem;
+      color: white;
+      font-weight: bold;
+      font-size: 1.125rem;
+      border: none;
+      cursor: pointer;
+      font-family: 'Crimson Text', serif;
+    }
+    
+    .unlock-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 10px 40px rgba(245, 158, 11, 0.4);
+    }
+    
+    .login-footer {
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    
+    .footer-text {
+      color: #fcd34d;
+      font-size: 0.75rem;
+      text-align: center;
+      opacity: 0.6;
+    }
+    
+    .main-container {
+      min-height: 100vh;
+      padding: 2rem;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+    
+    .logout-btn {
+      position: fixed;
+      top: 2rem;
+      right: 2rem;
+      padding: 0.75rem 1.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 0.5rem;
+      color: #fde68a;
+      font-family: 'Crimson Text', serif;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .logout-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: #f59e0b;
+    }
+    
+    .main-header {
+      max-width: 80rem;
+      margin: 0 auto 3rem auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+    }
+    
+    .main-title {
+      font-size: 3.75rem;
+      font-weight: bold;
+      color: #fef3c7;
+      margin-bottom: 1rem;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.05em;
+    }
+    
+    .main-subtitle {
+      font-size: 1.25rem;
+      color: #fde68a;
+      opacity: 0.8;
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      margin-bottom: 2rem;
+    }
+    
+    .form-input, .form-select, .form-textarea {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      transition: all 0.3s ease;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      color: #fef3c7;
+      font-family: 'Crimson Text', serif;
+      font-size: 1rem;
+      width: 100%;
+    }
+    
+    .form-input::placeholder, .form-textarea::placeholder {
+      color: #fcd34d;
+      opacity: 0.5;
+    }
+    
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: #f59e0b;
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
+    }
+    
+    .form-label {
+      display: block;
+      color: #fde68a;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      transition: all 0.3s ease;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      color: white;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      font-family: 'Crimson Text', serif;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .btn-primary:hover {
+      transform: scale(1.05);
+      box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+    }
+    
+    .btn-secondary {
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fde68a;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      font-family: 'Crimson Text', serif;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .reference-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      margin-bottom: 1.5rem;
+      transition: all 0.3s ease;
+    }
+    
+    .reference-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+    
+    .badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: inline-block;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .badge-type {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    
+    .badge-pdf {
+      background: rgba(34, 197, 94, 0.2);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .badge-tag {
+      background: rgba(139, 92, 246, 0.2);
+      color: #c4b5fd;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+    
+    .icon-btn {
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: #fde68a;
+    }
+    
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    
+    .icon-btn.delete:hover {
+      color: #f87171;
+    }
+    
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+      .grid-2, .grid-3, .grid-4 {
+        grid-template-columns: 1fr;
+      }
+      
+      .main-title {
+        font-size: 2.5rem;
+      }
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 5rem 2rem;
+    }
+    
+    .empty-icon {
+      width: 4rem;
+      height: 4rem;
+      color: #fcd34d;
+      opacity: 0.5;
+      margin: 0 auto 1rem;
+    }
+    
+    .empty-text {
+      font-size: 1.5rem;
+      color: #fde68a;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script>
+    const { useState, useEffect, createElement: h, Fragment } = React;
+    
+    // Simple icons as SVG paths
+    const Icons = {
+      Lock: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' })
+      ),
+      Book: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' })
+      ),
+      Plus: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M12 4v16m8-8H4' })
+      ),
+      Search: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' })
+      ),
+      Edit: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' })
+      ),
+      Trash: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16' })
+      ),
+      Download: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4' })
+      ),
+      Upload: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12' })
+      ),
+      Tag: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z' })
+      ),
+      FileText: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' })
+      ),
+      Check: (props) => h('svg', { ...props, fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+        h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M5 13l4 4L19 7' })
+      ),
+    };
 
+    function ReferenceManager() {
+      const [isAuthenticated, setIsAuthenticated] = useState(false);
+      const [passwordInput, setPasswordInput] = useState('');
+      const [passwordError, setPasswordError] = useState(false);
+      const [references, setReferences] = useState([]);
+      const [searchTerm, setSearchTerm] = useState('');
+      const [filterType, setFilterType] = useState('all');
+      const [filterTag, setFilterTag] = useState('');
+      const [showAddForm, setShowAddForm] = useState(false);
+      const [editingId, setEditingId] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [allTags, setAllTags] = useState(new Set());
+      const [citationStyle, setCitationStyle] = useState('apa');
+      
+      const APP_PASSWORD = 'ARC2024';
+      
+      // ============================================================================
+      // GOOGLE DRIVE CREDENTIALS - REPLACE WITH YOUR ACTUAL CREDENTIALS:
+      // ============================================================================
+      const GOOGLE_CLIENT_ID = 'PASTE_YOUR_CLIENT_ID_HERE';
+      const GOOGLE_API_KEY = 'PASTE_YOUR_API_KEY_HERE';
+      // ============================================================================
+
+      const [formData, setFormData] = useState({
+        type: 'article',
+        title: '',
+        authors: '',
+        year: '',
+        journal: '',
+        volume: '',
+        issue: '',
+        pages: '',
+        doi: '',
+        publisher: '',
+        tags: '',
+        notes: ''
+      });
+
+      useEffect(() => {
+        const authStatus = sessionStorage.getItem('arc_authenticated');
+        if (authStatus === 'true') {
+          setIsAuthenticated(true);
+        }
+      }, []);
+      
+      useEffect(() => {
+        if (isAuthenticated) {
+          loadReferences();
+        }
+      }, [isAuthenticated]);
+
+      const loadReferences = async () => {
+        try {
+          const result = await window.storage.list('ref:');
+          if (result && result.keys) {
+            const loadedRefs = await Promise.all(
+              result.keys.map(async (key) => {
+                try {
+                  const data = await window.storage.get(key);
+                  return data ? JSON.parse(data.value) : null;
+                } catch {
+                  return null;
+                }
+              })
+            );
+            
+            const validRefs = loadedRefs.filter(ref => ref !== null);
+            setReferences(validRefs);
+            
+            const tags = new Set();
+            validRefs.forEach(ref => {
+              if (ref.tags) {
+                ref.tags.split(',').forEach(tag => tags.add(tag.trim()));
+              }
+            });
+            setAllTags(tags);
+          }
+        } catch (error) {
+          console.log('No existing references, starting fresh');
+        }
+        setLoading(false);
+      };
+
+      const saveReference = async (reference) => {
+        try {
+          await window.storage.set(`ref:${reference.id}`, JSON.stringify(reference));
+        } catch (error) {
+          console.error('Failed to save reference:', error);
+          alert('Failed to save reference. Please try again.');
+        }
+      };
+
+      const deleteReference = async (id) => {
+        if (!confirm('Are you sure you want to delete this reference?')) return;
+        try {
+          await window.storage.delete(`ref:${id}`);
+          setReferences(references.filter(ref => ref.id !== id));
+        } catch (error) {
+          console.error('Failed to delete reference:', error);
+          alert('Failed to delete reference. Please try again.');
+        }
+      };
+
+      const handlePasswordSubmit = (e) => {
+        e.preventDefault();
+        if (passwordInput === APP_PASSWORD) {
+          setIsAuthenticated(true);
+          sessionStorage.setItem('arc_authenticated', 'true');
+          setPasswordError(false);
+        } else {
+          setPasswordError(true);
+          setPasswordInput('');
+        }
+      };
+      
+      const handleLogout = () => {
+        setIsAuthenticated(false);
+        sessionStorage.removeItem('arc_authenticated');
+        setPasswordInput('');
+      };
+      
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        
+        const newReference = {
+          id: editingId || `ref_${Date.now()}`,
+          ...formData,
+          dateAdded: editingId ? references.find(r => r.id === editingId)?.dateAdded : new Date().toISOString()
+        };
+
+        if (editingId) {
+          const updatedRefs = references.map(ref => 
+            ref.id === editingId ? newReference : ref
+          );
+          setReferences(updatedRefs);
+        } else {
+          setReferences([...references, newReference]);
+        }
+
+        await saveReference(newReference);
+        
+        if (newReference.tags) {
+          const newTags = new Set(allTags);
+          newReference.tags.split(',').forEach(tag => newTags.add(tag.trim()));
+          setAllTags(newTags);
+        }
+        
+        resetForm();
+      };
+      
+      const resetForm = () => {
+        setFormData({
+          type: 'article',
+          title: '',
+          authors: '',
+          year: '',
+          journal: '',
+          volume: '',
+          issue: '',
+          pages: '',
+          doi: '',
+          publisher: '',
+          tags: '',
+          notes: ''
+        });
+        setShowAddForm(false);
+        setEditingId(null);
+      };
+      
+      const startEdit = (ref) => {
+        setFormData({ ...ref });
+        setEditingId(ref.id);
+        setShowAddForm(true);
+      };
+      
+      const generateCitation = (ref, style = 'apa') => {
+        const authors = ref.authors || 'Unknown';
+        const year = ref.year || 'n.d.';
+        const title = ref.title || 'Untitled';
+        
+        if (style === 'apa') {
+          if (ref.type === 'article') {
+            const journal = ref.journal || '';
+            const volume = ref.volume ? `, ${ref.volume}` : '';
+            const issue = ref.issue ? `(${ref.issue})` : '';
+            const pages = ref.pages ? `, ${ref.pages}` : '';
+            const doi = ref.doi ? `. https://doi.org/${ref.doi}` : '';
+            return `${authors} (${year}). ${title}. ${journal}${volume}${issue}${pages}${doi}`;
+          } else if (ref.type === 'book') {
+            const publisher = ref.publisher || '';
+            return `${authors} (${year}). ${title}. ${publisher}`;
+          } else {
+            return `${authors} (${year}). ${title}`;
+          }
+        } else if (style === 'mla') {
+          if (ref.type === 'article') {
+            const journal = ref.journal || '';
+            const volume = ref.volume ? `, vol. ${ref.volume}` : '';
+            const issue = ref.issue ? `, no. ${ref.issue}` : '';
+            const year = ref.year ? `, ${ref.year}` : '';
+            const pages = ref.pages ? `, pp. ${ref.pages}` : '';
+            return `${authors}. "${title}." ${journal}${volume}${issue}${year}${pages}.`;
+          } else if (ref.type === 'book') {
+            const publisher = ref.publisher || '';
+            const year = ref.year ? `, ${ref.year}` : '';
+            return `${authors}. ${title}. ${publisher}${year}.`;
+          }
+        }
+        return `${authors} (${year}). ${title}`;
+      };
+      
+      const exportReferences = () => {
+        const citations = filteredReferences.map(ref => generateCitation(ref, citationStyle)).join('\n\n');
+        const blob = new Blob([citations], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `references-${citationStyle}.txt`;
+        a.click();
+      };
+      
+      const exportCSV = () => {
+        // Sort by type first, then alphabetically by author
+        const sortedRefs = [...filteredReferences].sort((a, b) => {
+          if (a.type !== b.type) {
+            return a.type.localeCompare(b.type);
+          }
+          return (a.authors || '').localeCompare(b.authors || '');
+        });
+        
+        // CSV headers
+        const headers = ['Type', 'Title', 'Authors', 'Year', 'Journal', 'Volume', 'Issue', 'Pages', 'Publisher', 'DOI', 'Tags', 'Notes', 'Date Added'];
+        
+        // Convert references to CSV rows
+        const rows = sortedRefs.map(ref => [
+          ref.type || '',
+          ref.title || '',
+          ref.authors || '',
+          ref.year || '',
+          ref.journal || '',
+          ref.volume || '',
+          ref.issue || '',
+          ref.pages || '',
+          ref.publisher || '',
+          ref.doi || '',
+          ref.tags || '',
+          ref.notes || '',
+          ref.dateAdded ? new Date(ref.dateAdded).toLocaleDateString() : ''
+        ].map(field => {
+          // Escape quotes and wrap in quotes if contains comma, quote, or newline
+          const escaped = String(field).replace(/"/g, '""');
+          return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
+        }).join(','));
+        
+        // Combine headers and rows
+        const csv = [headers.join(','), ...rows].join('\n');
+        
+        // Download
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `references-catalogue.csv`;
+        a.click();
+      };
+      
+      const filteredReferences = references.filter(ref => {
+        const matchesSearch = !searchTerm || 
+          ref.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          ref.authors?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          ref.journal?.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesType = filterType === 'all' || ref.type === filterType;
+        const matchesTag = !filterTag || ref.tags?.toLowerCase().includes(filterTag.toLowerCase());
+        
+        return matchesSearch && matchesType && matchesTag;
+      });
+
+      // Login screen
+      if (!isAuthenticated) {
+        return h('div', { className: 'login-container' },
+          h('div', { className: 'login-box' },
+            h('div', { className: 'lock-icon-container' },
+              h('div', { className: 'lock-icon-glow' }),
+              h(Icons.Lock, { className: 'lock-icon' })
+            ),
+            h('h1', { className: 'app-title' }, 'ARC'),
+            h('p', { style: { fontSize: '1.5rem', fontWeight: '600', color: '#fde68a', textAlign: 'center', marginBottom: '1rem', opacity: 0.9 } }, 'Academic Reference Catalogue'),
+            h('p', { className: 'app-subtitle' }, 'Protected Access'),
+            h('form', { onSubmit: handlePasswordSubmit },
+              h('div', { style: { marginBottom: '1.5rem' } },
+                h('input', {
+                  type: 'password',
+                  value: passwordInput,
+                  onChange: (e) => {
+                    setPasswordInput(e.target.value);
+                    setPasswordError(false);
+                  },
+                  placeholder: 'Enter password',
+                  className: `password-input ${passwordError ? 'error' : ''}`,
+                  autoFocus: true
+                }),
+                passwordError && h('p', { className: 'error-message' }, '✗ Incorrect password. Please try again.')
+              ),
+              h('button', { type: 'submit', className: 'unlock-btn' }, 'Unlock Catalogue')
+            ),
+            h('div', { className: 'login-footer' },
+              h('p', { className: 'footer-text' }, 'Your references and data are stored securely in your browser')
+            )
+          )
+        );
+      }
+
+      // Loading screen
+      if (loading) {
+        return h('div', { className: 'main-container' },
+          h('div', { style: { textAlign: 'center', paddingTop: '5rem' } },
+            h('p', { style: { fontSize: '1.5rem', color: '#fde68a' } }, 'Loading catalogue...')
+          )
+        );
+      }
+
+      // Main app
+      return h('div', { className: 'main-container' },
+        h('button', { onClick: handleLogout, className: 'logout-btn' }, 'Logout'),
+        h('div', { style: { maxWidth: '80rem', margin: '0 auto' } },
+          // Header
+          h('div', { className: 'main-header' },
+            h('div', null,
+              h('h1', { className: 'main-title' }, 'ARC'),
+              h('p', { style: { fontSize: '2rem', fontWeight: '600', color: '#fde68a', marginBottom: '0.5rem', opacity: 0.9 } }, 'Academic Reference Catalogue'),
+              h('p', { className: 'main-subtitle' }, 'Organize and manage your research collection')
+            )
+          ),
+          
+          // Search and Filter Bar
+          h('div', { className: 'card' },
+            h('div', { className: 'grid-4', style: { marginBottom: '1rem' } },
+              h('div', { style: { position: 'relative', gridColumn: 'span 2' } },
+                h(Icons.Search, { 
+                  style: { 
+                    position: 'absolute', 
+                    left: '0.75rem', 
+                    top: '50%', 
+                    transform: 'translateY(-50%)', 
+                    width: '1.25rem', 
+                    height: '1.25rem',
+                    color: '#fcd34d'
+                  } 
+                }),
+                h('input', {
+                  type: 'text',
+                  placeholder: 'Search by title, author, or journal...',
+                  value: searchTerm,
+                  onChange: (e) => setSearchTerm(e.target.value),
+                  className: 'form-input',
+                  style: { paddingLeft: '2.5rem' }
+                })
+              ),
+              h('select', {
+                value: filterType,
+                onChange: (e) => setFilterType(e.target.value),
+                className: 'form-select'
+              },
+                h('option', { value: 'all' }, 'All Types'),
+                h('option', { value: 'article' }, 'Journal Articles'),
+                h('option', { value: 'book' }, 'Books'),
+                h('option', { value: 'report' }, 'Reports'),
+                h('option', { value: 'other' }, 'Other')
+              ),
+              h('select', {
+                value: filterTag,
+                onChange: (e) => setFilterTag(e.target.value),
+                className: 'form-select'
+              },
+                h('option', { value: '' }, 'All Tags'),
+                ...Array.from(allTags).map(tag => h('option', { key: tag, value: tag }, tag))
+              )
+            ),
+            h('div', { style: { display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' } },
+              h('button', {
+                onClick: () => setShowAddForm(!showAddForm),
+                className: 'btn-primary'
+              },
+                h(Icons.Plus, { style: { width: '1.25rem', height: '1.25rem' } }),
+                'Add New Reference'
+              ),
+              h('select', {
+                value: citationStyle,
+                onChange: (e) => setCitationStyle(e.target.value),
+                className: 'form-select',
+                style: { width: 'auto' }
+              },
+                h('option', { value: 'apa' }, 'APA Style'),
+                h('option', { value: 'mla' }, 'MLA Style'),
+                h('option', { value: 'chicago' }, 'Chicago Style'),
+                h('option', { value: 'harvard' }, 'Harvard Style'),
+                h('option', { value: 'vancouver' }, 'Vancouver Style')
+              ),
+              h('button', {
+                onClick: exportReferences,
+                className: 'btn-secondary'
+              },
+                h(Icons.Download, { style: { width: '1.25rem', height: '1.25rem', display: 'inline', marginRight: '0.5rem' } }),
+                'Export Citations'
+              ),
+              h('button', {
+                onClick: exportCSV,
+                className: 'btn-secondary'
+              },
+                h(Icons.Download, { style: { width: '1.25rem', height: '1.25rem', display: 'inline', marginRight: '0.5rem' } }),
+                'Export CSV'
+              ),
+              h('div', { style: { marginLeft: 'auto', color: '#fde68a' } },
+                `${filteredReferences.length} of ${references.length} references`
+              )
+            )
+          ),
+          
+          // Add/Edit Form
+          showAddForm && h('div', { className: 'card' },
+            h('h2', { style: { fontSize: '1.875rem', fontWeight: 'bold', color: '#fef3c7', marginBottom: '1.5rem', fontFamily: "'Cinzel', serif" } },
+              editingId ? 'Edit Reference' : 'Add New Reference'
+            ),
+            h('form', { onSubmit: handleSubmit },
+              h('div', { className: 'grid-2', style: { marginBottom: '1.5rem' } },
+                h('div', null,
+                  h('label', { className: 'form-label' }, 'Type'),
+                  h('select', {
+                    value: formData.type,
+                    onChange: (e) => setFormData({ ...formData, type: e.target.value }),
+                    className: 'form-select'
+                  },
+                    h('option', { value: 'article' }, 'Journal Article'),
+                    h('option', { value: 'book' }, 'Book'),
+                    h('option', { value: 'report' }, 'Report'),
+                    h('option', { value: 'other' }, 'Other')
+                  )
+                )
+              ),
+              h('div', { style: { marginBottom: '1.5rem' } },
+                h('label', { className: 'form-label' }, 'Title *'),
+                h('input', {
+                  type: 'text',
+                  value: formData.title,
+                  onChange: (e) => setFormData({ ...formData, title: e.target.value }),
+                  required: true,
+                  className: 'form-input',
+                  placeholder: 'Enter reference title'
+                })
+              ),
+              h('div', { className: 'grid-2', style: { marginBottom: '1.5rem' } },
+                h('div', null,
+                  h('label', { className: 'form-label' }, 'Authors *'),
+                  h('input', {
+                    type: 'text',
+                    value: formData.authors,
+                    onChange: (e) => setFormData({ ...formData, authors: e.target.value }),
+                    required: true,
+                    className: 'form-input',
+                    placeholder: 'Last, F. M., & Last, F. M.'
+                  })
+                ),
+                h('div', null,
+                  h('label', { className: 'form-label' }, 'Year'),
+                  h('input', {
+                    type: 'text',
+                    value: formData.year,
+                    onChange: (e) => setFormData({ ...formData, year: e.target.value }),
+                    className: 'form-input',
+                    placeholder: '2024'
+                  })
+                )
+              ),
+              formData.type === 'article' && h(Fragment, null,
+                h('div', { style: { marginBottom: '1.5rem' } },
+                  h('label', { className: 'form-label' }, 'Journal'),
+                  h('input', {
+                    type: 'text',
+                    value: formData.journal,
+                    onChange: (e) => setFormData({ ...formData, journal: e.target.value }),
+                    className: 'form-input',
+                    placeholder: 'Journal name'
+                  })
+                ),
+                h('div', { className: 'grid-3', style: { marginBottom: '1.5rem' } },
+                  h('div', null,
+                    h('label', { className: 'form-label' }, 'Volume'),
+                    h('input', {
+                      type: 'text',
+                      value: formData.volume,
+                      onChange: (e) => setFormData({ ...formData, volume: e.target.value }),
+                      className: 'form-input'
+                    })
+                  ),
+                  h('div', null,
+                    h('label', { className: 'form-label' }, 'Issue'),
+                    h('input', {
+                      type: 'text',
+                      value: formData.issue,
+                      onChange: (e) => setFormData({ ...formData, issue: e.target.value }),
+                      className: 'form-input'
+                    })
+                  ),
+                  h('div', null,
+                    h('label', { className: 'form-label' }, 'Pages'),
+                    h('input', {
+                      type: 'text',
+                      value: formData.pages,
+                      onChange: (e) => setFormData({ ...formData, pages: e.target.value }),
+                      className: 'form-input',
+                      placeholder: '1-10'
+                    })
+                  )
+                )
+              ),
+              formData.type === 'book' && h('div', { style: { marginBottom: '1.5rem' } },
+                h('label', { className: 'form-label' }, 'Publisher'),
+                h('input', {
+                  type: 'text',
+                  value: formData.publisher,
+                  onChange: (e) => setFormData({ ...formData, publisher: e.target.value }),
+                  className: 'form-input'
+                })
+              ),
+              h('div', { style: { marginBottom: '1.5rem' } },
+                h('label', { className: 'form-label' }, 'DOI'),
+                h('input', {
+                  type: 'text',
+                  value: formData.doi,
+                  onChange: (e) => setFormData({ ...formData, doi: e.target.value }),
+                  className: 'form-input',
+                  placeholder: '10.1234/example'
+                })
+              ),
+              h('div', { style: { marginBottom: '1.5rem' } },
+                h('label', { className: 'form-label' }, 'Tags (comma-separated)'),
+                h('input', {
+                  type: 'text',
+                  value: formData.tags,
+                  onChange: (e) => setFormData({ ...formData, tags: e.target.value }),
+                  className: 'form-input',
+                  placeholder: 'methodology, neuroscience, review'
+                })
+              ),
+              h('div', { style: { marginBottom: '1.5rem' } },
+                h('label', { className: 'form-label' }, 'Notes'),
+                h('textarea', {
+                  value: formData.notes,
+                  onChange: (e) => setFormData({ ...formData, notes: e.target.value }),
+                  rows: 4,
+                  className: 'form-textarea',
+                  placeholder: 'Add your notes here...'
+                })
+              ),
+              h('div', { style: { display: 'flex', gap: '1rem' } },
+                h('button', { type: 'submit', className: 'btn-primary' },
+                  editingId ? 'Update Reference' : 'Add Reference'
+                ),
+                h('button', { type: 'button', onClick: resetForm, className: 'btn-secondary' }, 'Cancel')
+              )
+            )
+          ),
+          
+          // References List
+          filteredReferences.length === 0 ? h('div', { className: 'empty-state' },
+            h(Icons.Book, { className: 'empty-icon' }),
+            h('p', { className: 'empty-text' },
+              references.length === 0 
+                ? 'No references yet. Add your first reference to get started!'
+                : 'No references match your search criteria.'
+            )
+          ) : filteredReferences.map(ref => 
+            h('div', { key: ref.id, className: 'reference-card' },
+              h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' } },
+                h('div', { style: { flex: 1 } },
+                  h('div', { style: { marginBottom: '0.5rem' } },
+                    h('span', { className: 'badge badge-type' }, ref.type)
+                  ),
+                  h('h3', { style: { fontSize: '1.5rem', fontWeight: 'bold', color: '#fef3c7', marginBottom: '0.5rem' } }, ref.title),
+                  h('p', { style: { fontSize: '1.125rem', color: '#fde68a', marginBottom: '0.5rem' } },
+                    ref.authors, ref.year && ` (${ref.year})`
+                  ),
+                  ref.journal && h('p', { style: { color: '#fcd34d', fontStyle: 'italic', marginBottom: '0.5rem' } },
+                    ref.journal,
+                    ref.volume && `, ${ref.volume}`,
+                    ref.issue && `(${ref.issue})`,
+                    ref.pages && `, ${ref.pages}`
+                  ),
+                  ref.publisher && h('p', { style: { color: '#fcd34d', marginBottom: '0.5rem' } }, ref.publisher),
+                  ref.doi && h('p', { style: { color: '#fbbf24', fontSize: '0.875rem', marginBottom: '0.5rem' } }, `DOI: ${ref.doi}`),
+                  ref.tags && h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' } },
+                    ...ref.tags.split(',').map((tag, idx) =>
+                      h('span', { key: idx, className: 'badge badge-tag' },
+                        h(Icons.Tag, { style: { width: '0.75rem', height: '0.75rem', display: 'inline', marginRight: '0.25rem' } }),
+                        tag.trim()
+                      )
+                    )
+                  ),
+                  ref.notes && h('div', { style: { marginTop: '1rem', padding: '1rem', borderRadius: '0.5rem', background: 'rgba(0, 0, 0, 0.2)' } },
+                    h('p', { style: { color: '#fef3c7', fontSize: '0.875rem', fontStyle: 'italic' } }, ref.notes)
+                  ),
+                  h('div', { style: { marginTop: '1rem', padding: '1rem', borderRadius: '0.5rem', background: 'rgba(0, 0, 0, 0.3)' } },
+                    h('p', { style: { color: '#fde68a', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' } }, `${citationStyle.toUpperCase()} Citation:`),
+                    h('p', { style: { color: '#fef3c7', fontSize: '0.875rem' } }, generateCitation(ref, citationStyle))
+                  )
+                ),
+                h('div', { style: { display: 'flex', gap: '0.5rem', marginLeft: '1rem' } },
+                  h('button', {
+                    onClick: () => startEdit(ref),
+                    className: 'icon-btn',
+                    title: 'Edit'
+                  }, h(Icons.Edit, { style: { width: '1.25rem', height: '1.25rem' } })),
+                  h('button', {
+                    onClick: () => deleteReference(ref.id),
+                    className: 'icon-btn delete',
+                    title: 'Delete'
+                  }, h(Icons.Trash, { style: { width: '1.25rem', height: '1.25rem' } }))
+                )
+              )
+            )
+          )
+        )
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(ReferenceManager));
+  </script>
+</body>
+</html>
