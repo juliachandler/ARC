@@ -7,8 +7,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
   
   <style>
     * {
@@ -226,6 +224,7 @@
       font-size: 1rem;
       cursor: pointer;
       transition: all 0.3s ease;
+      border-style: solid;
     }
     
     .logout-btn:hover {
@@ -237,11 +236,10 @@
 <body>
   <div id="root"></div>
   
-  <script type="text/babel">
-    const { useState, useEffect } = React;
-    const { Upload, Book, FileText, Search, Plus, Edit2, Trash2, Tag, Download } = lucide;
+  <script>
+    const { useState, useEffect, createElement: h } = React;
 
-    const ReferenceManager = () => {
+    function ReferenceManager() {
       const [isAuthenticated, setIsAuthenticated] = useState(false);
       const [passwordInput, setPasswordInput] = useState('');
       const [passwordError, setPasswordError] = useState(false);
@@ -274,89 +272,58 @@
       };
 
       if (!isAuthenticated) {
-        return (
-          <div className="login-container">
-            <div className="login-box">
-              <div className="lock-icon-container">
-                <div className="lock-icon-glow"></div>
-                <svg className="lock-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                </svg>
-              </div>
-              
-              <h1 className="app-title">
-                Academic Reference<br/>Catalogue
-              </h1>
-              <p className="app-subtitle">
-                Protected Access
-              </p>
-              
-              <form onSubmit={handlePasswordSubmit}>
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <input
-                    type="password"
-                    value={passwordInput}
-                    onChange={(e) => {
-                      setPasswordInput(e.target.value);
-                      setPasswordError(false);
-                    }}
-                    placeholder="Enter password"
-                    className={`password-input ${passwordError ? 'error' : ''}`}
-                    autoFocus
-                  />
-                  {passwordError && (
-                    <p className="error-message">
-                      ✗ Incorrect password. Please try again.
-                    </p>
-                  )}
-                </div>
-                
-                <button type="submit" className="unlock-btn">
-                  Unlock Catalogue
-                </button>
-              </form>
-              
-              <div className="login-footer">
-                <p className="footer-text">
-                  Your references and data are stored securely in your browser
-                </p>
-              </div>
-            </div>
-          </div>
+        return h('div', { className: 'login-container' },
+          h('div', { className: 'login-box' },
+            h('div', { className: 'lock-icon-container' },
+              h('div', { className: 'lock-icon-glow' }),
+              h('svg', { className: 'lock-icon', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+                h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' })
+              )
+            ),
+            h('h1', { className: 'app-title' }, 'Academic Reference', h('br'), 'Catalogue'),
+            h('p', { className: 'app-subtitle' }, 'Protected Access'),
+            h('form', { onSubmit: handlePasswordSubmit },
+              h('div', { style: { marginBottom: '1.5rem' } },
+                h('input', {
+                  type: 'password',
+                  value: passwordInput,
+                  onChange: (e) => {
+                    setPasswordInput(e.target.value);
+                    setPasswordError(false);
+                  },
+                  placeholder: 'Enter password',
+                  className: `password-input ${passwordError ? 'error' : ''}`,
+                  autoFocus: true
+                }),
+                passwordError && h('p', { className: 'error-message' }, '✗ Incorrect password. Please try again.')
+              ),
+              h('button', { type: 'submit', className: 'unlock-btn' }, 'Unlock Catalogue')
+            ),
+            h('div', { className: 'login-footer' },
+              h('p', { className: 'footer-text' }, 'Your references and data are stored securely in your browser')
+            )
+          )
         );
       }
 
-      return (
-        <div className="main-container">
-          <button onClick={handleLogout} className="logout-btn">
-            Logout
-          </button>
-          
-          <div className="main-header">
-            <h1 className="main-title">
-              Academic Reference Catalogue
-            </h1>
-            <p className="main-subtitle">
-              Organize and manage your research collection
-            </p>
-          </div>
-
-          <div className="welcome-container">
-            <Book className="welcome-icon" />
-            <p className="welcome-text">
-              Welcome to your Academic Reference Catalogue!<br/>
-              Full functionality coming soon...
-            </p>
-            <p className="welcome-subtext">
-              You've successfully logged in. The complete app is being built...
-            </p>
-          </div>
-        </div>
+      return h('div', { className: 'main-container' },
+        h('button', { onClick: handleLogout, className: 'logout-btn' }, 'Logout'),
+        h('div', { className: 'main-header' },
+          h('h1', { className: 'main-title' }, 'Academic Reference Catalogue'),
+          h('p', { className: 'main-subtitle' }, 'Organize and manage your research collection')
+        ),
+        h('div', { className: 'welcome-container' },
+          h('svg', { className: 'welcome-icon', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', strokeWidth: 2, d: 'M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253' })
+          ),
+          h('p', { className: 'welcome-text' }, 'Welcome to your Academic Reference Catalogue!', h('br'), 'Full functionality coming soon...'),
+          h('p', { className: 'welcome-subtext' }, "You've successfully logged in. The complete app is being built...")
+        )
       );
-    };
+    }
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<ReferenceManager />);
+    root.render(React.createElement(ReferenceManager));
   </script>
 </body>
 </html>
