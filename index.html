@@ -472,7 +472,8 @@
         doi: '',
         publisher: '',
         tags: '',
-        notes: ''
+        notes: '',
+        pdfFile: null
       });
 
       useEffect(() => {
@@ -539,6 +540,54 @@
           alert('Failed to delete reference. Please try again.');
         }
       };
+      
+      const handleFileUpload = async (e) => {
+        const file = e.target.files[0];
+        if (file && file.type === 'application/pdf') {
+          setFormData({ ...formData, pdfFile: file });
+          
+          // Try to extract metadata from PDF
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const text = extractPDFText(arrayBuffer);
+            const metadata = extractMetadata(text);
+            
+            // Update form with extracted metadata (don't overwrite existing values)
+            setFormData(prev => ({
+              ...prev,
+              pdfFile: file,
+              title: metadata.title || prev.title,
+              authors: metadata.authors || prev.authors,
+              year: metadata.year || prev.year,
+              doi: metadata.doi || prev.doi
+            }));
+          } catch (error) {
+            console.error('Error extracting PDF metadata:', error);
+            // Keep the file even if extraction fails
+            setFormData(prev => ({ ...prev, pdfFile: file }));
+          }
+        }
+      };
+      
+      const extractPDFText = (arrayBuffer) => {
+        // Simple text extraction from PDF
+        const decoder = new TextDecoder();
+        return decoder.decode(arrayBuffer);
+      };
+      
+      const extractMetadata = (text) => {
+        const metadata = {};
+        
+        // Try to extract DOI
+        const doiMatch = text.match(/10\.\d{4,}\/[^\s]+/);
+        if (doiMatch) metadata.doi = doiMatch[0];
+        
+        // Try to extract year
+        const yearMatch = text.match(/\b(19|20)\d{2}\b/);
+        if (yearMatch) metadata.year = yearMatch[0];
+        
+        return metadata;
+      };
 
       const handlePasswordSubmit = (e) => {
         e.preventDefault();
@@ -564,6 +613,7 @@
         const newReference = {
           id: editingId || `ref_${Date.now()}`,
           ...formData,
+          pdfFile: formData.pdfFile ? formData.pdfFile.name : null,
           dateAdded: editingId ? references.find(r => r.id === editingId)?.dateAdded : new Date().toISOString()
         };
 
@@ -600,7 +650,8 @@
           doi: '',
           publisher: '',
           tags: '',
-          notes: ''
+          notes: '',
+          pdfFile: null
         });
         setShowAddForm(false);
         setEditingId(null);
@@ -874,6 +925,49 @@
                     h('option', { value: 'report' }, 'Report'),
                     h('option', { value: 'other' }, 'Other')
                   )
+                ),
+                h('div', null,
+                  h('label', { className: 'form-label' }, 'Upload PDF'),
+                  h('div', { style: { position: 'relative' } },
+                    h('input', {
+                      type: 'file',
+                      accept: '.pdf',
+                      onChange: handleFileUpload,
+                      id: 'pdf-upload',
+                      style: { display: 'none' }
+                    }),
+                    h('label', {
+                      htmlFor: 'pdf-upload',
+                      style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.75rem',
+                        padding: '0.75rem 1rem',
+                        borderRadius: '0.5rem',
+                        border: '2px dashed rgba(245, 158, 11, 0.3)',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        color: '#fef3c7'
+                      },
+                      onMouseOver: (e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                        e.currentTarget.style.borderColor = '#f59e0b';
+                      },
+                      onMouseOut: (e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+                      }
+                    },
+                      h(Icons.Upload, { style: { width: '1.25rem', height: '1.25rem', color: '#fbbf24' } }),
+                      h('span', null, formData.pdfFile ? formData.pdfFile.name : 'Click to upload PDF file'),
+                      formData.pdfFile && h(Icons.Check, { style: { width: '1.25rem', height: '1.25rem', color: '#86efac' } })
+                    )
+                  ),
+                  h('p', { style: { color: '#fcd34d', fontSize: '0.75rem', marginTop: '0.5rem', opacity: 0.7 } },
+                    'Upload a PDF to auto-extract metadata (DOI, year)'
+                  )
                 )
               ),
               h('div', { style: { marginBottom: '1.5rem' } },
@@ -1013,7 +1107,8 @@
               h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' } },
                 h('div', { style: { flex: 1 } },
                   h('div', { style: { marginBottom: '0.5rem' } },
-                    h('span', { className: 'badge badge-type' }, ref.type)
+                    h('span', { className: 'badge badge-type' }, ref.type),
+                    ref.pdfFile && h('span', { className: 'badge badge-pdf' }, 'PDF Attached')
                   ),
                   h('h3', { style: { fontSize: '1.5rem', fontWeight: 'bold', color: '#fef3c7', marginBottom: '0.5rem' } }, ref.title),
                   h('p', { style: { fontSize: '1.125rem', color: '#fde68a', marginBottom: '0.5rem' } },
