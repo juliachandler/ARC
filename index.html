@@ -455,6 +455,10 @@
       const [isGoogleDriveReady, setIsGoogleDriveReady] = useState(false);
       const [driveAccessToken, setDriveAccessToken] = useState(null);
       const [uploadingPDF, setUploadingPDF] = useState(false);
+      const [userEmail, setUserEmail] = useState(null);
+      
+      // Only this email can upload PDFs to Google Drive
+      const AUTHORIZED_UPLOADER = 'academicreferencecatalogue@gmail.com';
       
       const APP_PASSWORD = 'ARC2024';
       
@@ -462,10 +466,12 @@
       useEffect(() => {
         const savedToken = localStorage.getItem('arc_drive_token');
         const tokenExpiry = localStorage.getItem('arc_drive_token_expiry');
+        const savedEmail = localStorage.getItem('arc_user_email');
         
         if (savedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
           setDriveAccessToken(savedToken);
           setIsGoogleDriveReady(true);
+          if (savedEmail) setUserEmail(savedEmail);
           console.log('Restored Google Drive connection from localStorage');
         }
       }, []);
@@ -490,6 +496,9 @@
         publisher: '',
         tags: '',
         notes: '',
+        abstract: '',
+        openAccess: '',
+        country: '',
         pdfFile: null,
         driveFileId: null,
         driveFileName: null,
@@ -558,12 +567,27 @@
         try {
           const tokenClient = google.accounts.oauth2.initTokenClient({
             client_id: GOOGLE_CLIENT_ID,
-            scope: 'https://www.googleapis.com/auth/drive.file',
+            scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email',
             callback: async (response) => {
               if (response.error) {
                 console.error('Error getting token:', response);
                 alert('Failed to connect to Google Drive. Please try again.');
                 return;
+              }
+              
+              // Get user email
+              try {
+                const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                  headers: { Authorization: `Bearer ${response.access_token}` }
+                });
+                const userInfo = await userInfoResponse.json();
+                setUserEmail(userInfo.email);
+                console.log('User email:', userInfo.email);
+                
+                // Save user email to localStorage
+                localStorage.setItem('arc_user_email', userInfo.email);
+              } catch (error) {
+                console.error('Error getting user info:', error);
               }
               
               // Save token to state
@@ -768,7 +792,8 @@
               year: filenameMetadata.year || pdfMetadata.year,
               authors: filenameMetadata.authors || pdfMetadata.authors,
               title: filenameMetadata.title || pdfMetadata.title,
-              doi: pdfMetadata.doi // DOI only comes from PDF content
+              doi: pdfMetadata.doi, // DOI only comes from PDF content
+              abstract: pdfMetadata.abstract // Abstract only comes from PDF content
             };
             
             // Update form with extracted metadata (don't overwrite existing values)
@@ -778,11 +803,12 @@
               title: combinedMetadata.title || prev.title,
               authors: combinedMetadata.authors || prev.authors,
               year: combinedMetadata.year || prev.year,
-              doi: combinedMetadata.doi || prev.doi
+              doi: combinedMetadata.doi || prev.doi,
+              abstract: combinedMetadata.abstract || prev.abstract
             }));
             
-            // Upload to Google Drive if connected
-            if (isGoogleDriveReady) {
+            // Upload to Google Drive only if user is authorized
+            if (isGoogleDriveReady && userEmail === AUTHORIZED_UPLOADER) {
               const driveData = await uploadPDFToGoogleDrive(file);
               if (driveData) {
                 setFormData(prev => ({
@@ -792,6 +818,8 @@
                   driveFileUrl: driveData.driveFileUrl
                 }));
               }
+            } else if (isGoogleDriveReady && userEmail !== AUTHORIZED_UPLOADER) {
+              console.log('User not authorized to upload PDFs');
             }
           } catch (error) {
             console.error('Error processing PDF:', error);
@@ -856,6 +884,13 @@
         // Try to extract year (look for 4-digit year)
         const yearMatch = text.match(/\b(19|20)\d{2}\b/);
         if (yearMatch) metadata.year = yearMatch[0];
+        
+        // Try to extract abstract
+        // Look for text after "Abstract" or "ABSTRACT" keyword
+        const abstractMatch = text.match(/abstract[:\s\n]+(.{100,2000}?)(?=\n\n|introduction|keywords|1\.|references)/is);
+        if (abstractMatch && abstractMatch[1]) {
+          metadata.abstract = abstractMatch[1].trim().replace(/\s+/g, ' ');
+        }
         
         // Try to extract title (usually first large text block, often all caps or title case)
         // Get first 2000 characters which usually contains the header
@@ -929,6 +964,9 @@
           publisher: formData.publisher,
           tags: formData.tags,
           notes: formData.notes,
+          abstract: formData.abstract,
+          openAccess: formData.openAccess,
+          country: formData.country,
           pdfFile: formData.pdfFile ? formData.pdfFile.name : null,
           driveFileId: formData.driveFileId,
           driveFileName: formData.driveFileName,
@@ -972,6 +1010,9 @@
           publisher: '',
           tags: '',
           notes: '',
+          abstract: '',
+          openAccess: '',
+          country: '',
           pdfFile: null,
           driveFileId: null,
           driveFileName: null,
@@ -1043,7 +1084,7 @@
         });
         
         // CSV headers
-        const headers = ['Type', 'Title', 'Authors', 'Year', 'Journal', 'Volume', 'Issue', 'Pages', 'Publisher', 'DOI', 'Tags', 'Notes', 'Date Added'];
+        const headers = ['Type', 'Title', 'Authors', 'Year', 'Journal', 'Volume', 'Issue', 'Pages', 'Publisher', 'DOI', 'Tags', 'Notes', 'Abstract', 'Open Access', 'Country', 'Date Added'];
         
         // Convert references to CSV rows
         const rows = sortedRefs.map(ref => [
@@ -1059,6 +1100,9 @@
           ref.doi || '',
           ref.tags || '',
           ref.notes || '',
+          ref.abstract || '',
+          ref.openAccess || '',
+          ref.country || '',
           ref.dateAdded ? new Date(ref.dateAdded).toLocaleDateString() : ''
         ].map(field => {
           // Escape quotes and wrap in quotes if contains comma, quote, or newline
@@ -1094,7 +1138,7 @@
           });
           
           // CSV headers
-          const headers = ['Type', 'Title', 'Authors', 'Year', 'Journal', 'Volume', 'Issue', 'Pages', 'Publisher', 'DOI', 'Tags', 'Notes', 'Date Added', 'PDF Link'];
+          const headers = ['Type', 'Title', 'Authors', 'Year', 'Journal', 'Volume', 'Issue', 'Pages', 'Publisher', 'DOI', 'Tags', 'Notes', 'Abstract', 'Open Access', 'Country', 'Date Added', 'PDF Link'];
           
           // Convert references to CSV rows
           const rows = sortedRefs.map(ref => [
@@ -1110,6 +1154,9 @@
             ref.doi || '',
             ref.tags || '',
             ref.notes || '',
+            ref.abstract || '',
+            ref.openAccess || '',
+            ref.country || '',
             ref.dateAdded ? new Date(ref.dateAdded).toLocaleDateString() : '',
             ref.driveFileUrl || ''
           ].map(field => {
@@ -1462,9 +1509,11 @@
                     )
                   ),
                   h('p', { style: { color: '#fcd34d', fontSize: '0.75rem', marginTop: '0.5rem', opacity: 0.7 } },
-                    isGoogleDriveReady 
+                    isGoogleDriveReady && userEmail === AUTHORIZED_UPLOADER
                       ? 'Upload PDF to auto-extract metadata and save to Google Drive'
-                      : 'Upload PDF to auto-extract metadata (title, authors, DOI, year). Connect Google Drive to save PDFs.'
+                      : isGoogleDriveReady && userEmail !== AUTHORIZED_UPLOADER
+                      ? 'Upload PDF to auto-extract metadata (PDF upload to Drive restricted to admin)'
+                      : 'Upload PDF to auto-extract metadata (title, authors, DOI, year, abstract). Connect Google Drive to save PDFs.'
                   )
                 )
               ),
@@ -1582,6 +1631,40 @@
                   className: 'form-textarea',
                   placeholder: 'Add your notes here...'
                 })
+              ),
+              h('div', { style: { marginBottom: '1.5rem' } },
+                h('label', { className: 'form-label' }, 'Abstract'),
+                h('textarea', {
+                  value: formData.abstract,
+                  onChange: (e) => setFormData({ ...formData, abstract: e.target.value }),
+                  rows: 6,
+                  className: 'form-textarea',
+                  placeholder: 'Auto-extracted from PDF or enter manually...'
+                })
+              ),
+              h('div', { className: 'grid-2', style: { marginBottom: '1.5rem' } },
+                h('div', null,
+                  h('label', { className: 'form-label' }, 'Open Access'),
+                  h('select', {
+                    value: formData.openAccess,
+                    onChange: (e) => setFormData({ ...formData, openAccess: e.target.value }),
+                    className: 'form-select'
+                  },
+                    h('option', { value: '' }, 'Select...'),
+                    h('option', { value: 'Yes' }, 'Yes'),
+                    h('option', { value: 'No' }, 'No')
+                  )
+                ),
+                h('div', null,
+                  h('label', { className: 'form-label' }, 'Country'),
+                  h('input', {
+                    type: 'text',
+                    value: formData.country,
+                    onChange: (e) => setFormData({ ...formData, country: e.target.value }),
+                    className: 'form-input',
+                    placeholder: 'e.g., USA, UK, Canada'
+                  })
+                )
               ),
               h('div', { style: { display: 'flex', gap: '1rem' } },
                 h('button', { type: 'submit', className: 'btn-primary' },
